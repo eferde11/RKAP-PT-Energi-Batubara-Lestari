@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="id"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Sistem RKAP 2027 - PT Energi Batubara Lestari</title>
+<style>
+:root{--bg:#f5f7fb;--card:#fff;--tx:#1b2433;--mu:#5f6b7d;--bd:#d6dce6;--pr:#1f3864;--ac:#e8eefc;--in:#fffbd6;--ok:#1a7f4b;--er:#c0392b;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media(prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#10151f;--card:#181f2c;--tx:#e6ebf5;--mu:#98a3b8;--bd:#2c3648;--pr:#7ea2ea;--ac:#1e2a44;--in:#3a3512;--ok:#4cc38a;--er:#ff7b6b}}
+:root[data-theme="dark"]{--bg:#10151f;--card:#181f2c;--tx:#e6ebf5;--mu:#98a3b8;--bd:#2c3648;--pr:#7ea2ea;--ac:#1e2a44;--in:#3a3512;--ok:#4cc38a;--er:#ff7b6b}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+body{margin:0;background:var(--bg);color:var(--tx);font:14px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif}
+header{background:var(--pr);color:#fff;padding:14px 18px}header h1{margin:0;font-size:18px}header p{margin:2px 0 0;opacity:.85;font-size:12px}
+main{padding:14px;max-width:100%}
+.bar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:10px}
+select,input,button{font:inherit;color:var(--tx);background:var(--card);border:1px solid var(--bd);border-radius:6px;padding:5px 7px}
+input.i,select.i{background:var(--in);width:100%;min-width:70px}input[type=number]{width:96px}input[type=checkbox]{width:auto}
+button{cursor:pointer}button.p{background:var(--pr);color:#fff;border-color:var(--pr)}button.x{color:var(--er)}
+nav{display:flex;flex-wrap:wrap;gap:4px;margin-bottom:12px}nav button.on{background:var(--pr);color:#fff}
+.card{background:var(--card);border:1px solid var(--bd);border-radius:10px;padding:12px;margin-bottom:12px}
+.w{overflow-x:auto;max-width:100%}table{border-collapse:collapse;width:100%}th,td{border:1px solid var(--bd);padding:4px 5px;text-align:left;vertical-align:middle}
+th{background:var(--ac);font-size:12px;white-space:nowrap}td.c{background:var(--ac);font-weight:600;white-space:nowrap}td.a{color:var(--mu);min-width:150px;font-size:12px}
+.k{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:10px}.k div{background:var(--ac);border-radius:8px;padding:10px}.k b{display:block;font-size:17px}.k span{color:var(--mu);font-size:12px}
+.ok{color:var(--ok);font-weight:600}.er{color:var(--er);font-weight:600}.m{color:var(--mu);font-size:12px}
+</style></head><body>
+<header><h1>Sistem RKAP 2027 - PT Energi Batubara Lestari</h1><span id="who"></span> <button id="lo" onclick="logout()" hidden>Keluar</button><p>Rencana Kerja (Balanced Scorecard) terhubung ke Anggaran OPEX &amp; CAPEX berbasis Kode WBS</p></header>
+<div id="login" class="card" style="max-width:340px;margin:30px auto"><b>Masuk</b><p class="m">Gunakan akun yang diberikan Admin.</p><p><input id="lu" placeholder="Username" style="width:100%"></p><p><input id="lp" type="password" placeholder="Password" style="width:100%" onkeydown="if(event.key=='Enter')login()"></p><button class="p" onclick="login()">Masuk</button> <span id="lerr" class="er"></span></div>
+<main id="app" hidden>
+<div class="bar"><b>Departemen:</b><select id="dept" onchange="pick(this.value)"></select>
+<input id="pic" placeholder="Nama Kepala Departemen (PIC)" oninput="S.pic=this.value" style="min-width:220px">
+<button class="p" onclick="save()">Simpan</button><button onclick="submit()">Ajukan</button><button onclick="exp()">Ekspor CSV</button><span id="rv" hidden><button onclick="review('Disetujui')">Setujui</button><button onclick="review('Perlu Revisi')">Minta Revisi</button></span><b id="st"></b><span id="msg" class="m"></span></div>
+<nav id="nav"></nav><div id="view"></div>
+</main>
+<datalist id="dlo"></datalist><datalist id="dlc"></datalist>
+<script>
+const DATA=__DATA__;
+const DEPTS=__DEPTS__;let ME=null,DID=null;const REV=()=>ME&&["reviewer","admin"].includes(ME.role);
+const P=["Financial","Customer","Internal Business Process","Learning & Growth"];
+const MO=["Jan","Feb","Mar","Apr","Mei","Jun","Jul","Agu","Sep","Okt","Nov","Des"];
+const TABS=[["rk","Rencana Kerja (BSC)"],["ox","Anggaran OPEX"],["cx","Anggaran CAPEX"],["rc","Rekap"],["ks","Konsolidasi"],["ad","Pengguna"]];
+const OX={},CX={};
+Object.entries(DATA.div).forEach(([d,dn])=>Object.entries(DATA.jen).forEach(([j,jn])=>OX["AB3.11-06.02."+d+"."+j]=dn+" / "+jn));
+OX["AB3.11-06.01.00.00"]="Payroll & Kesehatan";DATA.extra.forEach(e=>OX[e[0]]=e[1].replace(/^\/|\/$/g,""));
+DATA.cap.forEach(c=>CX[c[0]]=c[1]);
+const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const num=v=>parseFloat(v)||0,fmt=n=>Math.round(n||0).toLocaleString("id-ID");
+const slug=s=>s.toLowerCase().replace(/[^a-z0-9]+/g,"-").replace(/^-|-$/g,"");
+const B={bsc:()=>({p:"",sas:"",kpi:"",sat:"",base:"",tgt:"",bob:0,prog:"",q:[false,false,false,false],pic:""}),
+ ox:()=>({prog:"",kode:"",ur:"",m:Array(12).fill(0)}),cx:()=>({prog:"",kode:"",nama:"",biaya:0,waktu:""})};
+let S,tab="rk",db=null;
+const fresh=d=>({status:"Draft",dept:d||"",pic:"",bsc:[B.bsc()],ox:[B.ox()],cx:[B.cx()]});
+S=fresh();
+const sel=(o,v,t,i,f,cls="i")=>`<select class="${cls}" data-t="${t}" data-i="${i}" data-f="${f}"><option value=""></option>${o.map(x=>`<option${x==v?" selected":""}>${esc(x)}</option>`).join("")}</select>`;
+const inp=(v,t,i,f,ty="text",ex="",l="")=>`<input class="i" ${l?`list="${l}"`:""} type="${ty}" ${ex} value="${esc(v)}" data-t="${t}" data-i="${i}" data-f="${f}">`;
+const progs=()=>S.bsc.map(r=>r.prog).filter(Boolean);
+const sm=a=>a.reduce((x,y)=>x+num(y),0);
+function D(){
+ const d={},pt=n=>n?sm(S.ox.filter(r=>r.prog==n).map(r=>sm(r.m)))+sm(S.cx.filter(r=>r.prog==n).map(r=>r.biaya)):0;
+ S.bsc.forEach((r,i)=>d["rt"+i]=fmt(pt(r.prog)));
+ S.ox.forEach((r,i)=>{d["ot"+i]=fmt(sm(r.m));d["ok"+i]=OX[r.kode]||""});
+ S.cx.forEach((r,i)=>d["ck"+i]=CX[r.kode]||"");
+ const mo=MO.map((_,j)=>sm(S.ox.map(r=>r.m[j])));mo.forEach((v,j)=>d["om"+j]=fmt(v));
+ const ot=sm(mo),ct=sm(S.cx.map(r=>r.biaya)),g=ot+ct,lk=sm(S.bsc.map(r=>pt(r.prog))),bo=sm(S.bsc.map(r=>r.bob));
+ Object.assign(d,{ot:fmt(ot),ct:fmt(ct),g:fmt(g),lk:fmt(lk),gap:fmt(g-lk),bo:bo+"%"});
+ P.forEach((p,k)=>{const rs=S.bsc.filter(r=>r.p==p);d["pc"+k]=rs.filter(r=>r.prog).length;d["pb"+k]=sm(rs.map(r=>r.bob))+"%";d["pa"+k]=fmt(sm(rs.map(r=>pt(r.prog))))});
+ d.bchk=bo==100?'<span class="ok">OK - total bobot 100%</span>':'<span class="er">Total bobot harus 100% (kini '+bo+'%)</span>';
+ d.gchk=Math.round(g-lk)==0?'<span class="ok">Semua anggaran sudah terhubung ke Program Kerja</span>':'<span class="er">Ada anggaran belum terhubung / nama program tidak cocok / nama program ganda</span>';
+ d._={ot,ct,bo,g,pt,gap:g-lk};return d}
+function upd(){const d=D();document.querySelectorAll("[data-k]").forEach(e=>e.innerHTML=d[e.dataset.k]??"")}
+const k=x=>`<span data-k="${x}"></span>`;
+const tb=(h,rows)=>`<div class="w"><table><tr>${h.map(x=>`<th>${x}</th>`).join("")}</tr>${rows.join("")}</table></div>`;
+const del=(t,i)=>`<td><button class="x" onclick="rm('${t}',${i})">&times;</button></td>`;
+const V={
+rk:()=>`<div class="card"><b>Rencana Kerja - Balanced Scorecard</b><p class="m">Perspektif &rarr; Sasaran &rarr; KPI &rarr; Program Kerja. Nama Program Kerja harus unik (menjadi penghubung ke Anggaran).</p>`+
+ tb(["Perspektif","Sasaran Strategis","KPI","Satuan","Baseline","Target","Bobot %","Program Kerja / Inisiatif","Q1","Q2","Q3","Q4","PIC","Total Anggaran (Rp)",""],S.bsc.map((r,i)=>`<tr><td>${sel(P,r.p,"bsc",i,"p")}</td><td>${inp(r.sas,"bsc",i,"sas")}</td><td>${inp(r.kpi,"bsc",i,"kpi")}</td><td>${inp(r.sat,"bsc",i,"sat","text",'style="min-width:60px"')}</td><td>${inp(r.base,"bsc",i,"base","text",'style="min-width:60px"')}</td><td>${inp(r.tgt,"bsc",i,"tgt","text",'style="min-width:60px"')}</td><td>${inp(r.bob,"bsc",i,"bob","number",'min="0" max="100"')}</td><td>${inp(r.prog,"bsc",i,"prog")}</td>`+
+ r.q.map((q,j)=>`<td><input type="checkbox" ${q?"checked":""} data-t="bsc" data-i="${i}" data-f="q" data-j="${j}"></td>`).join("")+`<td>${inp(r.pic,"bsc",i,"pic")}</td><td class="c">${k("rt"+i)}</td>${del("bsc",i)}</tr>`))+
+ `<p><button onclick="add('bsc')">+ Tambah baris</button> &nbsp; ${k("bchk")}</p></div>`,
+ox:()=>`<div class="card"><b>Anggaran OPEX (Kode WBS BUA)</b><p class="m">Pilih Program Kerja, ketik/pilih Kode WBS (kategori terisi otomatis), isi nominal per bulan (Rp).</p>`+
+ tb(["Program Kerja","Kode WBS","Kategori Biaya (auto)","Uraian",...MO,"Total",""],S.ox.map((r,i)=>`<tr><td>${sel(progs(),r.prog,"ox",i,"prog")}</td><td>${inp(r.kode,"ox",i,"kode","text",'style="min-width:150px"',"dlo")}</td><td class="a">${k("ok"+i)}</td><td>${inp(r.ur,"ox",i,"ur")}</td>`+
+ r.m.map((v,j)=>`<td><input class="i" type="number" min="0" value="${num(v)||""}" data-t="ox" data-i="${i}" data-f="m" data-j="${j}"></td>`).join("")+`<td class="c">${k("ot"+i)}</td>${del("ox",i)}</tr>`))+
+ `<p><button onclick="add('ox')">+ Tambah baris</button> &nbsp; Total OPEX: <b>${k("ot")}</b></p></div>`,
+cx:()=>`<div class="card"><b>Anggaran CAPEX (Kode WBS Aset)</b>`+
+ tb(["Program Kerja","Kode WBS Aset","Kategori Aset (auto)","Nama Aset / Proyek","Estimasi Biaya (Rp)","Waktu Pengadaan",""],S.cx.map((r,i)=>`<tr><td>${sel(progs(),r.prog,"cx",i,"prog")}</td><td>${inp(r.kode,"cx",i,"kode","text",'style="min-width:170px"',"dlc")}</td><td class="a">${k("ck"+i)}</td><td>${inp(r.nama,"cx",i,"nama")}</td><td>${inp(r.biaya||"","cx",i,"biaya","number",'min="0" style="width:130px"')}</td><td>${inp(r.waktu,"cx",i,"waktu")}</td>${del("cx",i)}</tr>`))+
+ `<p><button onclick="add('cx')">+ Tambah baris</button> &nbsp; Total CAPEX: <b>${k("ct")}</b></p></div>`,
+rc:()=>`<div class="card"><div class="k"><div><span>Total OPEX (Rp)</span><b>${k("ot")}</b></div><div><span>Total CAPEX (Rp)</span><b>${k("ct")}</b></div><div><span>TOTAL RKAP 2027 (Rp)</span><b>${k("g")}</b></div><div><span>Anggaran terhubung ke Rencana Kerja</span><b>${k("lk")}</b></div><div><span>Selisih belum terhubung</span><b>${k("gap")}</b></div></div><p>${k("gchk")}</p></div>`+
+ `<div class="card"><b>Ringkasan per Perspektif BSC</b>`+tb(["Perspektif","Jumlah Program","Total Bobot","Total Anggaran (Rp)"],P.map((p,x)=>`<tr><td>${p}</td><td>${k("pc"+x)}</td><td>${k("pb"+x)}</td><td>${k("pa"+x)}</td></tr>`))+`<p>${k("bchk")}</p></div>`+
+ `<div class="card"><b>Rekap Bulanan OPEX (Rp)</b>`+tb(MO,[`<tr>${MO.map((_,j)=>`<td>${k("om"+j)}</td>`).join("")}</tr>`])+`</div>`,
+ad:()=>`<div class="card"><b>Kelola Pengguna</b><div class="bar"><input id="nu" placeholder="username"><input id="np" type="password" placeholder="password (min 10)"><select id="nr"><option>departemen</option><option>reviewer</option><option>admin</option></select><select id="nd"><option value="">- departemen -</option>${DEPTS.map(d=>`<option value="${d.id}">${esc(d.name)}</option>`).join("")}</select><button class="p" onclick="mkUser()">Buat akun</button></div><div id="ul"></div></div>`,
+ks:()=>`<div class="card"><b>Konsolidasi Seluruh Departemen</b><p class="m">Data dari departemen yang sudah menekan Simpan.</p><button onclick="load()">Muat data</button><div id="ksv"></div></div>`};
+function draw(){document.getElementById("nav").innerHTML=TABS.filter(t=>(t[0]!="ks"||REV())&&(t[0]!="ad"||ME.role=="admin")).map(t=>`<button class="${t[0]==tab?"on":""}" onclick="go('${t[0]}')">${t[1]}</button>`).join("");document.getElementById("view").innerHTML=V[tab]();document.getElementById("st").textContent="Status: "+S.status+(S.note?" - Catatan reviewer: "+S.note:"");upd()}
+function go(t){tab=t;draw();if(t=="ad")users()}
+function add(t){S[t].push(B[t]());draw()}
+function rm(t,i){S[t].splice(i,1);if(!S[t].length)S[t].push(B[t]());draw()}
+document.addEventListener("input",e=>{const el=e.target,{t,i,f,j}=el.dataset;if(!t)return;const r=S[t][i];let v=el.type=="checkbox"?el.checked:el.type=="number"?num(el.value):el.value;if(j!==undefined)r[f][j]=v;else r[f]=v;upd()});
+const msg=t=>document.getElementById("msg").textContent=t;
+const api=async(m,u,b)=>{const r=await fetch(u,{method:m,headers:b?{"Content-Type":"application/json"}:{},body:b?JSON.stringify(b):undefined,credentials:"same-origin"});const j=await r.json().catch(()=>({}));if(!r.ok)throw new Error(j.error||"Kesalahan "+r.status);return j};
+async function pick(id){DID=id||null;S=fresh("");if(id){try{const j=await api("GET","/api/submissions/"+id);S={...fresh(j.dept),...j.payload,dept:j.dept,status:j.status,note:j.note||""}}catch(e){msg(e.message)}}document.getElementById("pic").value=S.pic||"";draw()}
+async function save(){if(!DID)return msg("Pilih departemen dahulu.")&&0;try{await api("PUT","/api/submissions/"+DID,{pic:S.pic,bsc:S.bsc,ox:S.ox,cx:S.cx});msg("Tersimpan "+new Date().toLocaleTimeString("id-ID"));return true}catch(e){msg(e.message);return false}}
+async function login(){try{await api("POST","/api/login",{username:document.getElementById("lu").value,password:document.getElementById("lp").value});boot()}catch(e){document.getElementById("lerr").textContent=e.message}}
+async function logout(){try{await api("POST","/api/logout")}catch(e){}location.reload()}
+async function mkUser(){const g=x=>document.getElementById(x).value;try{await api("POST","/api/users",{username:g("nu"),password:g("np"),role:g("nr"),dept_id:g("nd")});msg("Akun dibuat.");users()}catch(e){msg(e.message)}}
+async function users(){try{const j=await api("GET","/api/users");document.getElementById("ul").innerHTML=tb(["Username","Peran","Departemen"],j.users.map(u=>`<tr><td>${esc(u.username)}</td><td>${esc(u.role)}</td><td>${esc(u.dept||"-")}</td></tr>`))}catch(e){}}
+let KS=[];
+async function load(){const v=document.getElementById("ksv");try{KS=(await api("GET","/api/consolidation")).rows;let a=0,b=0;const rows=KS.map(o=>{a+=num(o.ot);b+=num(o.ct);return`<tr><td>${esc(o.dept)}</td><td>${fmt(num(o.ot))}</td><td>${fmt(num(o.ct))}</td><td>${fmt(num(o.ot)+num(o.ct))}</td><td>${num(o.bo)==100?'<span class="ok">100%</span>':'<span class="er">'+num(o.bo)+'%</span>'}</td><td>${esc(o.status)}</td></tr>`});rows.push(`<tr><td class="c">TOTAL PERUSAHAAN</td><td class="c">${fmt(a)}</td><td class="c">${fmt(b)}</td><td class="c">${fmt(a+b)}</td><td></td><td class="c">${KS.filter(o=>o.status=="Disetujui").length}/${KS.length} disetujui</td></tr>`);v.innerHTML=tb(["Departemen","OPEX (Rp)","CAPEX (Rp)","Total (Rp)","Bobot BSC","Status"],rows)+'<p><button onclick="expKs()">Ekspor konsolidasi CSV</button></p>'}catch(e){v.textContent="Gagal memuat: "+e.message}}
+function dl(name,rows){const t="\ufeffsep=;\n"+rows.map(r=>r.map(c=>'"'+String(c??"").replace(/"/g,'""')+'"').join(";")).join("\n");const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([t],{type:"text/csv;charset=utf-8"}));a.download=name;a.click();msg("File siap diunduh.")}
+function exp(){if(!S.dept)return msg("Pilih departemen dahulu.");const p=D()._.pt,r=[["RKAP 2027 - PT Energi Batubara Lestari"],["Departemen",S.dept],["PIC",S.pic],["Status",S.status],[],["RENCANA KERJA (BSC)"],["Perspektif","Sasaran","KPI","Satuan","Baseline","Target","Bobot %","Program Kerja","Q1","Q2","Q3","Q4","PIC","Total Anggaran (Rp)"]];
+ S.bsc.forEach(x=>r.push([x.p,x.sas,x.kpi,x.sat,x.base,x.tgt,x.bob,x.prog,...x.q.map(q=>q?"X":""),x.pic,p(x.prog)]));
+ r.push([],["ANGGARAN OPEX"],["Program Kerja","Kode WBS","Kategori","Uraian",...MO,"Total"]);S.ox.forEach(x=>r.push([x.prog,x.kode,OX[x.kode]||"",x.ur,...x.m.map(num),sm(x.m)]));
+ r.push([],["ANGGARAN CAPEX"],["Program Kerja","Kode WBS Aset","Kategori","Nama Aset","Estimasi Biaya (Rp)","Waktu Pengadaan"]);S.cx.forEach(x=>r.push([x.prog,x.kode,CX[x.kode]||"",x.nama,num(x.biaya),x.waktu]));
+ dl("RKAP2027_"+slug(S.dept)+".csv",r)}
+function expKs(){dl("RKAP2027_konsolidasi.csv",[["Departemen","OPEX (Rp)","CAPEX (Rp)","Total (Rp)","Bobot BSC %","Status"],...KS.map(o=>[o.dept,num(o.ot),num(o.ct),num(o.ot)+num(o.ct),num(o.bo),o.status||"Draft"])])}
+async function submit(){if(!DID)return msg("Pilih departemen dahulu.");if(!await save())return;try{const j=await api("POST","/api/submissions/"+DID+"/submit");S.status=j.status;S.note="";draw();msg("Berhasil diajukan.")}catch(e){msg(e.message)}}
+async function review(st){if(!DID)return msg("Pilih departemen dahulu.");const note=st=="Perlu Revisi"?(prompt("Catatan revisi untuk departemen:")||""):"";try{const j=await api("POST","/api/submissions/"+DID+"/review",{status:st,note});S.status=j.status;S.note=j.note;draw()}catch(e){msg(e.message)}}
+async function boot(){try{ME=(await api("GET","/api/me")).user}catch(e){ME=null}
+document.getElementById("login").hidden=!!ME;document.getElementById("app").hidden=!ME;document.getElementById("lo").hidden=!ME;if(!ME)return;
+document.getElementById("who").textContent=ME.username+" ("+ME.role+")";document.getElementById("rv").hidden=!REV();
+const list=ME.role=="departemen"?DEPTS.filter(d=>d.id==ME.dept_id):DEPTS;
+document.getElementById("dept").innerHTML=(list.length>1?'<option value="">- Pilih Departemen -</option>':"")+list.map(d=>`<option value="${d.id}">${esc(d.name)}</option>`).join("");
+if(list.length==1)await pick(list[0].id);else draw()}
+document.getElementById("dlo").innerHTML=Object.entries(OX).map(([c,n])=>`<option value="${c}" label="${esc(n)}">`).join("");
+document.getElementById("dlc").innerHTML=Object.entries(CX).map(([c,n])=>`<option value="${c}" label="${esc(n)}">`).join("");
+boot();
+</script></body></html>

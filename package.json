@@ -1,0 +1,9 @@
+{
+  "name": "rkap-web",
+  "version": "1.0.0",
+  "description": "Sistem RKAP 2027 - PT Energi Batubara Lestari",
+  "main": "server.js",
+  "engines": { "node": ">=22.13" },
+  "scripts": { "start": "node server.js", "test": "node --test test/app.test.js" },
+  "dependencies": { "express": "^4.21.0" }
+}
